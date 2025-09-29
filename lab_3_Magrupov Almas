@@ -1,0 +1,190 @@
+
+CREATE DATABASE advanced_lab;
+USE advanced_lab;
+create table employees(
+emp_id SERIAL PRIMARY KEY,
+first_name varchar(100) not null,	
+last_name varchar(100) not null,
+department varchar(100) not null,
+salary int,
+hire_date date,
+status varchar(50) default 'Active'
+);
+Create table departments(
+dept_id SERIAL PRIMARY KEY,
+dept_name varchar(100),
+budget int,
+manager_id int
+); 
+Create table projects(
+project_id SERIAL PRIMARY KEY,
+project_name varchar(100),
+dept_id int,
+start_date date,
+end_date date,
+budget int
+);
+#2
+Insert into employees(
+emp_id,first_name, last_name, department
+)
+Values(1, 'Almas', 'Magrupov', 'IT');
+
+INSERT INTO employees (first_name, last_name, department, salary, status)
+VALUES ('Aruzhan', 'Samatova', 'Finance', DEFAULT, DEFAULT);
+
+
+UPDATE employees
+SET department = CASE
+    WHEN salary > 80000 THEN 'Management'
+    WHEN salary BETWEEN 50000 AND 80000 THEN 'Senior'
+    ELSE 'Junior'
+END;
+
+update employees 
+set department = default
+where status = 'inactive';
+
+update departments d	
+set budget = (
+    SELECT AVG(e.salary) * 1.2
+    FROM employees e
+    WHERE e.department = d.dept_name
+);
+
+update employees 
+set salary = salary * 1.15,
+	status = 'Promoted'
+Where department = 'Sales';
+
+Delete from employees where status = 'Terminated'
+
+Delete from employees
+where salary <40000
+and hire_date>'2023-01-01'
+and Department is Null;
+
+Delete from departments d
+where dept_id NOT IN(
+	select distinct dept_id
+	from employees 
+	where department is not null
+);
+
+delete from projects
+where end_date<'2023-01-01'
+RETURNING *;
+
+ALTER TABLE employees ALTER COLUMN department DROP NOT NULL;
+
+INSERT INTO employees (first_name, last_name, department, salary)
+VALUES ('Almas', 'Magrupov', NULL, NULL);
+
+Update employees	
+set	department = 'Unassigned'
+where department IS	NULL
+
+delete from employees 
+where salary is null 
+or department is null;
+
+insert into employees (first_name, last_name, department, salary, hire_date)
+VALUES ('Almas', 'Magrupov', 'IT', 50000, CURRENT_DATE)
+RETURNING emp_id, first_name || ' ' || last_name AS full_name;
+
+update employees
+set salary = salary+5000
+where department ='IT'
+returning emp_id, salary -5000 as old_salary, salary as new_salary;
+
+delete from employees
+where hire_date < '2020-01-01'
+
+INSERT INTO employees (first_name, last_name, department, salary, status)
+SELECT 'Almas', 'Magrupov', 'IT', 60000, 'Active'
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM employees
+    WHERE first_name = 'Almas' AND last_name = 'Magrupov'
+);
+
+UPDATE employees e
+SET salary = salary * (
+    CASE
+        WHEN (SELECT budget FROM departments d WHERE d.dept_name = e.department) > 100000 
+            THEN 1.10
+        ELSE 1.05
+    END
+);
+
+INSERT INTO employees (first_name, last_name, department, salary, status)
+VALUES
+    ('Aruzhan', 'Samatova', 'HR', 40000, 'Active'),
+    ('Daulet', 'Nurgali', 'Finance', 45000, 'Active'),
+    ('Dana', 'Muratova', 'IT', 50000, 'Active'),
+    ('Maksat', 'Serikov', 'Sales', 42000, 'Active'),
+    ('Altynai', 'Bekova', 'IT', 47000, 'Active');
+
+UPDATE employees
+SET salary = salary * 1.10
+WHERE first_name IN ('Aruzhan', 'Daulet', 'Dana', 'Maksat', 'Altynai');
+
+CREATE TABLE employee_archive AS
+SELECT *
+FROM employees
+WHERE 1 = 0;   -- создаём структуру без данных
+
+INSERT INTO employee_archive
+SELECT *
+FROM employees
+WHERE status = 'Inactive';
+
+DELETE FROM employees
+WHERE status = 'Inactive';
+
+UPDATE projects p
+SET end_date = end_date + INTERVAL '30 days'
+WHERE p.budget > 50000
+  AND (
+        SELECT COUNT(*) 
+        FROM employees e
+        WHERE e.department = p.department_id
+      ) > 3;
+
+
+INSERT INTO employees (first_name, last_name, department, salary, status)
+VALUES
+    ('Aruzhan', 'Samatova', 'HR', 40000, 'Active'),
+    ('Daulet', 'Nurgali', 'Finance', 45000, 'Active'),
+    ('Dana', 'Muratova', 'IT', 50000, 'Active'),
+    ('Maksat', 'Serikov', 'Sales', 42000, 'Active'),
+    ('Altynai', 'Bekova', 'IT', 47000, 'Active');
+
+UPDATE employees
+SET salary = salary * 1.10
+WHERE first_name IN ('Aruzhan', 'Daulet', 'Dana', 'Maksat', 'Altynai');
+CREATE TABLE employee_archive AS
+SELECT *
+FROM employees
+WHERE 1 = 0;   -- создаём структуру без данных
+
+INSERT INTO employee_archive
+SELECT *
+FROM employees
+WHERE status = 'Inactive';
+
+DELETE FROM employees
+WHERE status = 'Inactive';
+
+UPDATE projects p
+SET end_date = end_date + INTERVAL '30 days'
+WHERE p.budget > 50000
+  AND (
+        SELECT COUNT(*) 
+        FROM employees e
+        WHERE e.department = (
+            SELECT d.dept_name 
+            FROM departments d
+            WHERE d.dept_id = p.dept_id
+        )
+      ) > 3;
