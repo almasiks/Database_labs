@@ -1,0 +1,222 @@
+create table employees (
+employee_id integer primary key,
+first_name text,
+last_name text,
+age integer check ( age between 18 and 65),
+salary numeric check ( salary > 0)
+);
+create table products_catalog(
+product_id integer,
+product_name text,
+regular_price numeric(100),
+discount_price numeric(100)
+    constraint valid_discount
+check (regular_price>0 and discount_price >0 and discount_price <regular_price)
+);
+
+Create table bookings(
+booking_id integer primary key,
+check_in_date date,
+check_out_date date,
+num_guests integer check ( num_guests between 1 and 10 ), check ( check_out_date > check_in_date )
+);
+
+insert into employees values (1, 'Almas', 'Magrupov',19,100000);
+insert into employees values (2,'Aidos','Magrupov', 32, 500000);
+insert into products_catalog values(1, 'laptop', 50000,45000);
+insert into products_catalog values(2,'phone',10000, 9500);
+
+INSERT INTO bookings VALUES (1, '2025-10-10', '2025-10-15', 3);
+INSERT INTO bookings VALUES (2, '2025-11-01', '2025-11-05', 2);
+
+Create table  customers(
+customer_id  integer primary key not null,
+email text not null,
+phone text null,
+registration_date date not null
+);
+Create  table  inventory(
+item_id integer not null primary key,
+item_name text not null,
+quantity integer not null check ( quantity >0),
+unit_price numeric not null check ( unit_price >0),
+last_updated timestamp not null
+);
+
+INSERT INTO inventory VALUES
+(1, 'Laptop', 10, 1200.50, NOW(), 'High-end gaming laptop'),
+(2, 'Mouse', 50, 25.99, NOW(), 'Wireless optical mouse');
+
+Create  table  users(
+user_id integer,
+username text unique,
+email text unique,
+created_at timestamp
+);
+Create table  course_enrollments(
+enrollment_id integer,
+student_id integer,
+course_code text,
+semester text,
+constraint unique_enrollment unique(student_id, course_code,semester)
+);
+
+alter table users
+add constraint unique_username UNIQUE (username);
+
+alter table users
+add constraint unique_email   UNIQUE (email);
+
+INSERT INTO users (username, email, full_name)
+VALUES
+('almas01', 'almas@mail.com', 'Almas Magrupov'),
+('aidos99', 'aidos@mail.com', 'Aidos Magrupov');
+
+Create table  departments1(
+dept_id integer primary key,
+dept_name text not null,
+location text
+);
+
+INSERT INTO departments VALUES (1, 'IT', 'Almaty');
+INSERT INTO departments VALUES (2, 'HR', 'Astana');
+INSERT INTO departments VALUES (3, 'Sales', 'Shymkent');
+
+Create  table  student_courses(
+student_id integer,
+course_id integer,
+enrollment_date date,
+ grade text,
+primary key (student_id,course_id)
+);
+
+
+create table employees_dept(
+emp_id integer primary key,
+emp_name text not null,
+dept_id INTEGER references departments,
+hire_date date
+);
+INSERT INTO employees_dept VALUES (1, 'Almas Magrupov', 1, '2025-01-10');
+INSERT INTO employees_dept VALUES (2, 'Aidos Magrupov', 2, '2025-02-01');
+INSERT INTO employees_dept VALUES (3, 'Nursultan Bekturov', 3, '2025-03-05');
+
+create table authors(
+author_id integer primary key,
+author_name text not null,
+country text
+);
+
+create table publishers(
+publisher_id integer primary key,
+publisher_name text not null,
+city text
+);
+
+create  table  books(
+book_id integer primary key,
+title text not null,
+author_id integer references authors,
+publisher_id integer references publishers,
+publication_year integer,
+isbn text unique
+);
+INSERT INTO authors VALUES
+(1, 'J.K. Rowling', 'United Kingdom'),
+(2, 'George R.R. Martin', 'United States'),
+(3, 'Haruki Murakami', 'Japan');
+
+INSERT INTO publishers VALUES
+(1, 'Bloomsbury Publishing', 'London'),
+(2, 'Bantam Books', 'New York'),
+(3, 'Shinchosha Publishing', 'Tokyo');
+
+INSERT INTO books VALUES
+(1, 'Harry Potter and the Philosopher''s Stone', 1, 1, 1997, '9780747532743'),
+(2, 'A Game of Thrones', 2, 2, 1996, '9780553103540'),
+(3, 'Kafka on the Shore', 3, 3, 2002, '9781400079278');
+
+create table categories(
+category_id integer primary key,
+category_name text not null
+);
+CREATE  TABLE products_fk(
+product_id integer primary key ,
+product_name text not null,
+category_id integer references categories on delete restrict
+);
+create table orders(
+order_id integer primary key,
+order_date date not null
+);
+create  table order_items(
+item_id integer primary key,
+order_id integer references orders on delete cascade,
+product_id integer references products_fk,
+quantity integer check ( quantity > 0)
+);
+
+
+INSERT INTO categories VALUES (1, 'Electronics');
+INSERT INTO categories VALUES (2, 'Books');
+
+
+INSERT INTO products_fk VALUES (1, 'Laptop', 1);
+INSERT INTO products_fk VALUES (2, 'Headphones', 1);
+INSERT INTO products_fk VALUES (3, 'Novel', 2);
+
+
+INSERT INTO orders VALUES (1, '2025-10-12');
+INSERT INTO orders VALUES (2, '2025-10-13');
+
+
+INSERT INTO order_items VALUES (1, 1, 1, 2);
+INSERT INTO order_items VALUES (2, 1, 2, 1);
+INSERT INTO order_items VALUES (3, 2, 3, 4);
+
+DELETE FROM categories WHERE category_id = 1;
+
+
+SELECT * FROM order_items WHERE order_id = 1;
+
+
+DELETE FROM orders WHERE order_id = 1;
+
+
+SELECT * FROM order_items;
+
+
+CREATE TABLE customers (
+    customer_id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL UNIQUE,
+    phone TEXT,
+    registration_date DATE NOT NULL DEFAULT CURRENT_DATE
+);
+
+
+CREATE TABLE products (
+    product_id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    price NUMERIC(10,2) NOT NULL CHECK (price >= 0),
+    stock_quantity INTEGER NOT NULL CHECK (stock_quantity >= 0)
+);
+
+
+CREATE TABLE orders (
+    order_id SERIAL PRIMARY KEY,
+    customer_id INTEGER REFERENCES customers(customer_id) ON DELETE CASCADE,
+    order_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    total_amount NUMERIC(12,2) NOT NULL CHECK (total_amount >= 0),
+    status TEXT NOT NULL CHECK (status IN ('pending', 'processing', 'shipped', 'delivered', 'cancelled'))
+);
+
+
+CREATE TABLE order_details (
+    order_detail_id SERIAL PRIMARY KEY,
+    order_id INTEGER REFERENCES orders(order_id) ON DELETE CASCADE,
+    product_id INTEGER REFERENCES products(product_id) ON DELETE RESTRICT,
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+    unit_price NUMERIC(10,2) NOT NULL CHECK (unit_price >= 0)
+);
