@@ -1,0 +1,134 @@
+CREATE DATABASE mydb;
+USE mydb;
+
+CREATE TABLE employees (
+emp_id INT PRIMARY KEY,
+emp_name VARCHAR(50),
+dept_id INT,
+salary DECIMAL(10, 2)
+);
+CREATE TABLE departments (
+ dept_id INT PRIMARY KEY,
+ dept_name VARCHAR(50),
+ location VARCHAR(50)
+);
+
+CREATE TABLE projects (
+ project_id INT PRIMARY KEY,
+ project_name VARCHAR(50),
+ dept_id INT,
+ budget DECIMAL(10, 2)
+);
+
+INSERT INTO employees (emp_id, emp_name, dept_id, salary)
+VALUES
+(1, 'John Smith', 101, 50000),
+(2, 'Jane Doe', 102, 60000),
+(3, 'Mike Johnson', 101, 55000),
+(4, 'Sarah Williams', 103, 65000),
+(5, 'Tom Brown', NULL, 45000);
+
+INSERT INTO departments (dept_id, dept_name, location) VALUES
+(101, 'IT', 'Building A'),
+(102, 'HR', 'Building B'),
+(103, 'Finance', 'Building C'),
+(104, 'Marketing', 'Building D');
+
+INSERT INTO projects (project_id, project_name, dept_id,
+budget) VALUES
+(1, 'Website Redesign', 101, 100000),
+(2, 'Employee Training', 102, 50000),
+(3, 'Budget Analysis', 103, 75000),
+(4, 'Cloud Migration', 101, 150000),
+(5, 'AI Research', NULL, 200000);
+
+create view employee_details AS
+SELECT emp_name, salary, dept_name, location
+from employees e
+join departments d on e.dept_id = d.dept_id
+
+select * from employee_details
+
+create view dept_statistics AS
+select
+dept_name,
+count(e.emp_id) as employee_count,
+AVG(e.salary) as avg_salary,
+max(e.salary) as max_salary,
+min(e.salary) as min_salary
+from departments d
+left join employees e on d.dept_id = e.dept_id
+group by d.dept_name;
+
+SELECT * FROM dept_statistics
+ORDER BY employee_count DESC;
+
+create view project_overview as
+select
+project_name,
+budget,
+dept_name,
+location,
+count(e.emp_id) as team_size
+from projects p
+join departments d on p.dept_id = d.dept_id
+left join employees e on d.dept_id = e.dept_id
+group by project_name, budget, dept_name, location;
+
+create view high_earners as
+select emp_name, salary, dept_name
+from employees e
+join departments d on e.dept_id = d.dept_id
+where e.salary > 55000
+
+create or replace view employee_details as
+select emp_name, salary, dept_name,
+       case
+           when e.salary > 60000 then 'high'
+           when e.salary > 50000 then 'Medium'
+        else 'standard'
+    end as salary_grade
+from employees e
+join departments d on e.dept_id = d.dept_id
+
+SELECT * FROM employee_details;
+
+CREATE VIEW top_performers AS
+SELECT * FROM high_earners;
+
+DROP VIEW high_earners;
+
+create view temp_view as
+select emp_name, salary, dept_name
+from employees e
+join departments d on e.dept_id = d.dept_id
+where salary <50000
+
+select * from temp_view;
+drop view temp_view;
+
+
+create view employee_salaries as
+select emp_id, emp_name, dept_id, salary
+from employees;
+
+update employee_salaries
+set salary = 52000
+where emp_name = 'John Smith';
+
+SELECT * FROM employees WHERE emp_name = 'John Smith';
+
+
+INSERT INTO employee_salaries (emp_id, emp_name, dept_id, salary)
+VALUES (6, 'Alice Johnson', 102, 58000)
+
+
+create view it_employees as
+select emp_id, emp_name, dept_id, salary
+from employees e
+where dept_id = 101
+with local check option;
+
+
+create view  dept_summary_mv as
+
