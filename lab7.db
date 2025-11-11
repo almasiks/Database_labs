@@ -129,6 +129,206 @@ from employees e
 where dept_id = 101
 with local check option;
 
+CREATE TABLE dept_summary_mv AS
+SELECT
+    d.dept_id,
+    d.dept_name,
+    COALESCE(COUNT(DISTINCT e.emp_id), 0) AS total_employees,
+    COALESCE(SUM(e.salary), 0) AS total_salaries,
+    COALESCE(COUNT(DISTINCT p.project_id), 0) AS total_projects,
+    COALESCE(SUM(p.budget), 0) AS total_project_budget
+FROM departments d
+LEFT JOIN employees e ON d.dept_id = e.dept_id
+LEFT JOIN projects p ON d.dept_id = p.dept_id
+GROUP BY d.dept_id, d.dept_name;
+DELETE FROM dept_summary_mv;
 
-create view  dept_summary_mv as
+INSERT INTO dept_summary_mv
+SELECT
+    d.dept_id,
+    d.dept_name,
+    COALESCE(COUNT(DISTINCT e.emp_id), 0),
+    COALESCE(SUM(e.salary), 0),
+    COALESCE(COUNT(DISTINCT p.project_id), 0),
+    COALESCE(SUM(p.budget), 0)
+FROM departments d
+LEFT JOIN employees e ON d.dept_id = e.dept_id
+LEFT JOIN projects p ON d.dept_id = p.dept_id
+GROUP BY d.dept_id, d.dept_name;
 
+SELECT * FROM dept_summary_mv ORDER BY total_employees DESC;
+INSERT INTO employees (emp_name, emp_id, dept_id, salary)
+values ('Charlie Brown', 8, 101, 54000);
+
+create role analyst;
+
+
+CREATE ROLE data_viewer LOGIN PASSWORD 'viewer123';
+CREATE USER report_user WITH PASSWORD 'report456';
+
+
+
+CREATE ROLE db_creator LOGIN PASSWORD 'creator789' CREATEDB;
+
+CREATE ROLE user_manager LOGIN PASSWORD 'manager101' CREATEROLE;
+
+CREATE ROLE admin_user LOGIN PASSWORD 'admin999' SUPERUSER;
+
+
+GRANT SELECT ON employees, departments, projects TO analyst;
+GRANT ALL PRIVILEGES ON employee_details TO data_viewer;
+GRANT SELECT, INSERT ON employees TO report_user;
+
+
+CREATE ROLE hr_team NOLOGIN;
+CREATE ROLE finance_team NOLOGIN;
+CREATE ROLE it_team NOLOGIN;
+
+
+CREATE USER hr_user1 WITH PASSWORD 'hr001';
+CREATE USER hr_user2 WITH PASSWORD 'hr002';
+CREATE USER finance_user1 WITH PASSWORD 'fin001';
+
+
+GRANT hr_team TO hr_user1;
+GRANT hr_team TO hr_user2;
+
+GRANT finance_team TO finance_user1;
+GRANT SELECT, UPDATE ON employees TO hr_team;
+
+
+REVOKE UPDATE ON employees FROM hr_team;
+REVOKE hr_team FROM hr_user2;
+REVOKE ALL PRIVILEGES ON employee_details FROM data_viewer;
+
+
+ALTER ROLE analyst LOGIN PASSWORD 'analyst123';
+ALTER ROLE user_manager SUPERUSER;
+ALTER ROLE analyst PASSWORD NULL;
+ALTER ROLE data_viewer CONNECTION LIMIT 5;
+
+CREATE ROLE read_only NOLOGIN;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO read_only;
+
+
+CREATE ROLE junior_analyst LOGIN PASSWORD 'junior123';
+CREATE ROLE senior_analyst LOGIN PASSWORD 'senior123';
+
+
+GRANT read_only TO junior_analyst;
+GRANT read_only TO senior_analyst;
+GRANT INSERT, UPDATE ON employees TO senior_analyst;
+
+CREATE ROLE db_creator LOGIN PASSWORD 'creator789' CREATEDB;
+CREATE ROLE user_manager LOGIN PASSWORD 'manager101' CREATEROLE;
+CREATE ROLE admin_user LOGIN PASSWORD 'admin999' SUPERUSER;
+
+GRANT SELECT ON employees, departments, projects TO analyst;
+GRANT ALL PRIVILEGES ON employee_details TO data_viewer;
+GRANT SELECT, INSERT ON employees TO report_user;
+
+CREATE ROLE hr_team NOLOGIN;
+CREATE ROLE finance_team NOLOGIN;
+CREATE ROLE it_team NOLOGIN;
+
+CREATE USER hr_user1 WITH PASSWORD 'hr001';
+CREATE USER hr_user2 WITH PASSWORD 'hr002';
+CREATE USER finance_user1 WITH PASSWORD 'fin001';
+
+GRANT hr_team TO hr_user1;
+GRANT hr_team TO hr_user2;
+GRANT finance_team TO finance_user1;
+
+GRANT SELECT, UPDATE ON employees TO hr_team;
+
+REVOKE UPDATE ON employees FROM hr_team;
+REVOKE hr_team FROM hr_user2;
+REVOKE ALL PRIVILEGES ON employee_details FROM data_viewer;
+
+ALTER ROLE analyst LOGIN PASSWORD 'analyst123';
+ALTER ROLE user_manager SUPERUSER;
+ALTER ROLE analyst PASSWORD NULL;
+ALTER ROLE data_viewer CONNECTION LIMIT 5;
+
+CREATE ROLE read_only NOLOGIN;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO read_only;
+
+CREATE ROLE junior_analyst LOGIN PASSWORD 'junior123';
+CREATE ROLE senior_analyst LOGIN PASSWORD 'senior123';
+
+GRANT read_only TO junior_analyst;
+GRANT read_only TO senior_analyst;
+
+GRANT INSERT, UPDATE ON employees TO senior_analyst;
+
+CREATE ROLE project_manager LOGIN PASSWORD 'pm123';
+ALTER VIEW dept_statistics OWNER TO project_manager;
+ALTER TABLE projects OWNER TO project_manager;
+
+CREATE ROLE temp_owner LOGIN;
+CREATE TABLE temp_table (id INT);
+ALTER TABLE temp_table OWNER TO temp_owner;
+
+REASSIGN OWNED BY temp_owner TO postgres;
+DROP OWNED BY temp_owner;
+DROP ROLE temp_owner;
+
+
+CREATE VIEW dept_dashboard AS
+WITH emp_summary AS (
+    SELECT dept_id, COUNT(*) AS employee_count, ROUND(AVG(salary)::numeric,2) AS avg_salary
+    FROM employees
+    GROUP BY dept_id
+),
+proj_summary AS (
+    SELECT dept_id, COUNT(*) AS active_projects, SUM(budget) AS total_project_budget
+    FROM projects
+    GROUP BY dept_id
+)
+SELECT
+    d.dept_name,
+    d.location,
+    COALESCE(e.employee_count,0) AS employee_count,
+    COALESCE(e.avg_salary,0) AS avg_salary,
+    COALESCE(p.active_projects,0) AS active_projects,
+    COALESCE(p.total_project_budget,0) AS total_project_budget,
+    ROUND(
+        CASE WHEN COALESCE(e.employee_count,0) = 0 THEN 0
+             ELSE COALESCE(p.total_project_budget,0)/e.employee_count
+        END::numeric, 2
+    ) AS budget_per_employee
+FROM departments d
+LEFT JOIN emp_summary e ON d.dept_id = e.dept_id
+LEFT JOIN proj_summary p ON d.dept_id = p.dept_id;
+
+
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
+CREATE VIEW high_budget_projects AS
+SELECT
+    p.project_name,
+    p.budget,
+    d.dept_name,
+    p.created_date,
+    CASE
+        WHEN p.budget > 150000 THEN 'Critical Review Required'
+        WHEN p.budget > 100000 THEN 'Management Approval Needed'
+        ELSE 'Standard Process'
+    END AS approval_status
+FROM projects p
+JOIN departments d ON p.dept_id = d.dept_id
+WHERE p.budget > 75000;
+
+
+CREATE ROLE viewer_role NOLOGIN;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO viewer_role;
+
+CREATE ROLE entry_role NOLOGIN;
+GRANT viewer_role TO entry_role;
+GRANT INSERT ON employees, projects TO entry_role;
+
+CREATE ROLE analyst_role NOLOGIN;
+GRANT entry_role TO analyst_role;
+GRANT UPDATE ON employees, projects TO analyst_role;
+
+CREATE ROLE manager_role_
