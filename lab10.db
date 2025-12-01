@@ -1,0 +1,257 @@
+USE your_database_name;
+
+CREATE TABLE accounts (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  balance DECIMAL(10, 2) DEFAULT 0.00
+);
+CREATE TABLE products (
+ id SERIAL PRIMARY KEY,
+ shop VARCHAR(100) NOT NULL,
+ product VARCHAR(100) NOT NULL,
+ price DECIMAL(10, 2) NOT NULL
+);
+
+INSERT INTO accounts (name, balance) VALUES
+ ('Alice', 1000.00),
+ ('Bob', 500.00),
+ ('Wally', 750.00);
+INSERT INTO products (shop, product, price) VALUES
+Level Description Phenomena Allowed
+SERIALIZABLE Highest isolation. Transactions appear to
+execute serially. None
+REPEATABLE
+READ
+Data read is guaranteed to be the same if read
+again. Phantom reads
+READ
+COMMITTED
+Only sees committed data, but may see
+different data on re-read.
+Non-repeatable reads,
+Phantoms
+READ
+UNCOMMITTED
+Can see uncommitted changes from other
+transactions.
+Dirty reads, Non-repeatable,
+Phantoms
+ ('Joe''s Shop', 'Coke', 2.50),
+ ('Joe''s Shop', 'Pepsi', 3.00);
+
+
+BEGIN;
+UPDATE accounts SET balance = balance - 100.00 WHERE name = 'Alice';
+UPDATE accounts SET balance = balance + 100.00 WHERE name = 'Bob';
+COMMIT;
+
+UPDATE accounts SET balance = balance - 500.00 WHERE name = 'Alice';
+BEGIN;
+UPDATE accounts SET balance = balance - 100.00
+ WHERE name = 'Alice';
+SAVEPOINT my_savepoint;
+UPDATE accounts SET balance = balance + 100.00
+ WHERE name = 'Bob';
+ROLLBACK TO my_savepoint;
+UPDATE accounts SET balance = balance + 100.00
+ WHERE name = 'Wally';
+COMMIT;
+
+SELECT * FROM products WHERE shop = 'Joe''s Shop';
+SELECT * FROM products WHERE shop = 'Joe''s Shop';
+COMMIT;
+
+BEGIN;
+DELETE FROM products WHERE shop = 'Joe''s Shop';
+INSERT INTO products (shop, product, price)
+ VALUES ('Joe''s Shop', 'Fanta', 3.50);
+COMMIT;
+
+BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+
+SELECT MAX(price), MIN(price) FROM products
+ WHERE shop = 'Joe''s Shop';
+SELECT MAX(price), MIN(price) FROM products
+ WHERE shop = 'Joe''s Shop';
+COMMIT;
+
+BEGIN;
+INSERT INTO products (shop, product, price)
+ VALUES ('Joe''s Shop', 'Sprite', 4.00);
+COMMIT;
+
+
+SELECT * FROM products WHERE shop = 'Joe''s Shop';
+SELECT * FROM products WHERE shop = 'Joe''s Shop';
+SELECT * FROM products WHERE shop = 'Joe''s Shop';
+COMMIT;
+BEGIN;
+UPDATE products SET price = 99.99
+ WHERE product = 'Fanta';
+ROLLBACK;
+
+
+DO $$
+DECLARE
+    bob_balance NUMERIC(10,2);
+BEGIN
+    SELECT balance INTO bob_balance
+    FROM accounts
+    WHERE name = 'Bob'
+    FOR UPDATE;
+
+    IF bob_balance < 200 THEN
+        RAISE EXCEPTION 'Insufficient funds on Bob''s account';
+    END IF;
+
+    UPDATE accounts
+    SET balance = balance - 200
+    WHERE name = 'Bob';
+
+    UPDATE accounts
+    SET balance = balance + 200
+    WHERE name = 'Wally';
+END;
+
+BEGIN;
+
+INSERT INTO products (shop, product, price)
+VALUES ('Joe''s Shop', 'Sprite', 2.50);
+
+SAVEPOINT sp1;
+
+UPDATE products
+SET price = 2.80
+WHERE shop = 'Joe''s Shop' AND product = 'Sprite';
+
+SAVEPOINT sp2;
+
+DELETE FROM products
+WHERE shop = 'Joe''s Shop' AND product = 'Sprite';
+
+ROLLBACK TO SAVEPOINT sp1;
+
+COMMIT;
+-- Exercise 3: concurrent withdrawals
+
+CREATE TABLE accounts (
+  id      SERIAL PRIMARY KEY,
+  name    TEXT UNIQUE,
+  balance NUMERIC(10,2) NOT NULL
+);
+
+INSERT INTO accounts (name, balance)
+VALUES ('Alice', 300.00);
+
+-- Session 1 (READ COMMITTED, no proper locking)
+BEGIN TRANSACTION ISOLATION LEVEL READ COMMITTED;
+
+SELECT balance
+FROM accounts
+WHERE name = 'Alice';   -- 300
+
+UPDATE accounts
+SET balance = balance - 200
+WHERE name = 'Alice';
+
+-- do not commit yet
+
+
+-- Session 2 (READ COMMITTED, no proper locking)
+BEGIN TRANSACTION ISOLATION LEVEL READ COMMITTED;
+
+SELECT balance
+FROM accounts
+WHERE name = 'Alice';   -- also 300
+
+UPDATE accounts
+SET balance = balance - 200
+WHERE name = 'Alice';
+
+COMMIT;   -- Session 2
+
+COMMIT;   -- Session 1
+
+
+
+-- Same scenario, safer: READ COMMITTED + row locking
+
+-- Session 1
+BEGIN TRANSACTION ISOLATION LEVEL READ COMMITTED;
+
+SELECT balance
+FROM accounts
+WHERE name = 'Alice'
+FOR UPDATE;
+
+UPDATE accounts
+SET balance = balance - 200
+WHERE name = 'Alice';
+
+COMMIT;
+BEGIN TRANSACTION ISOLATION LEVEL READ COMMITTED;
+
+SELECT balance
+FROM accounts
+WHERE name = 'Alice'
+FOR UPDATE;   -- waits for Session 1
+
+UPDATE accounts
+SET balance = balance - 200
+WHERE name = 'Alice';
+
+COMMIT;
+
+BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+
+SELECT balance
+FROM accounts
+WHERE name = 'Alice'
+FOR UPDATE;
+
+UPDATE accounts
+SET balance = balance - 200
+WHERE name = 'Alice';
+
+COMMIT;
+
+
+-- Session 2 (may block or get serialization error, depending on timing)
+BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+
+SELECT balance
+FROM accounts
+WHERE name = 'Alice'
+FOR UPDATE;
+
+UPDATE accounts
+SET balance = balance - 200
+WHERE name = 'Alice';
+COMMIT;
+
+CREATE TABLE Sells (
+  shop    TEXT,
+  product TEXT,
+  price   NUMERIC(10,2)
+);
+
+INSERT INTO Sells (shop, product, price) VALUES
+  ('Joe', 'apple',  2.00),
+  ('Joe', 'orange', 5.00),
+  ('Joe', 'pear',   8.00);
+
+
+SELECT MIN(price) FROM Sells WHERE shop = 'Joe';
+DELETE FROM Sells WHERE shop = 'Joe';
+INSERT INTO Sells (shop, product, price) VALUES ('Joe', 'wine', 10.00);
+
+
+SELECT MAX(price) FROM Sells WHERE shop = 'Joe';
+
+
+BEGIN;
+SELECT MIN(price) FROM Sells WHERE shop = 'Joe';
+SELECT MAX(price) FROM Sells WHERE shop = 'Joe';
+
+COMMIT;
+
